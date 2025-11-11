@@ -3,15 +3,19 @@
 // 从 wmn-data.json 来的站点信息
 export interface SiteInfo {
   name: string;
-  category: string;
+  cat: string;
   uri_check: string;
   e_code: number;
   e_string: string | null;
   m_code: number;
   m_string: string | null;
-  method: string;
-  headers: Record<string, string> | null;
+  method?: string;
+  headers?: Record<string, string> | null;
   // ... (json 文件中还有其他字段, 但这些是核心)
+}
+
+export interface WmnData {
+  sites: SiteInfo[];
 }
 
 // 我们的 API 返回给前端的结果
