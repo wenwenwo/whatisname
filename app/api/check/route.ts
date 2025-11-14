@@ -1,22 +1,25 @@
 // app/api/check/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
+import { log, LogLevel } from '@/lib/logger';
 import type { SiteInfo, CheckResult, WmnData } from '@/lib/types';
 import wmnData from '@/lib/wmn-data.json';
 
 const REQUEST_TIMEOUT = 8000; // 8 秒
 
 async function checkSite(site: SiteInfo, username: string): Promise<CheckResult> {
-  const url = site.uri_check.replace("{}", username);
+  const checkUrl = site.uri_check.replace("{account}", username);
+  const profileUrl = site.uri_pretty ? site.uri_pretty.replace("{account}", username) : checkUrl;
+
   const result: CheckResult = {
     siteName: site.name,
     status: 'Error', // 默认状态
-    url: url,
+    url: profileUrl, // Use profileUrl for the link
   };
-  console.log(`[checkSite] Checking ${site.name} for username ${username} at ${url}`);
+  console.log(`[checkSite] Checking ${site.name} for username ${username} at ${checkUrl}`);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(checkUrl, {
       method: site.method || 'GET',
       headers: site.headers as HeadersInit || {},
       signal: AbortSignal.timeout(REQUEST_TIMEOUT),
@@ -72,6 +75,8 @@ export async function GET(request: NextRequest) {
   const username = searchParams.get('username');
   const category = searchParams.get('category') || 'allnoporn';
 
+  log(LogLevel.INFO, `Request for username: ${username}`, { category });
+
   console.log(`[API] Received request for username: ${username}, category: ${category}`);
 
   if (!username) {
@@ -84,10 +89,13 @@ export async function GET(request: NextRequest) {
       const ip = request.headers.get('x-forwarded-for') || 'unknown';
       const userAgent = request.headers.get('user-agent') || 'unknown';
       
-      await sql`
+      const sql = `
         INSERT INTO query_logs (username_queried, ip_address, user_agent)
-        VALUES (${username}, ${ip}, ${userAgent});
+        VALUES ($1, $2, $3)
       `;
+      console.log('Logging to query_logs with params:', [username, ip, userAgent]);
+      await query(sql, [username, ip, userAgent]);
+
       console.log(`[API] Logged query for username: ${username}`);
     } catch (e) {
       console.error("[API] Failed to write log to database:", e);
