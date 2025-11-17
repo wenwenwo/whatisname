@@ -5,6 +5,7 @@ export interface SiteInfo {
   name: string;
   cat: string;
   uri_check: string;
+  uri_pretty?: string;
   e_code: number;
   e_string: string | null;
   m_code: number;
